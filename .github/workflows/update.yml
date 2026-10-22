@@ -15,6 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python scripts/update.py
+            - run: node scripts/preds.js
       - run: |
           git config user.name "nba-bot"
           git config user.email "bot@users.noreply.github.com"
