@@ -6,7 +6,10 @@ from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
 BASE = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/'
-START = os.environ.get('START_DATE', '2025-10-21')  # da quando importare la prima volta
+START = os.environ.get('START_DATE', '2026-10-01')  # inizio della stagione corrente: si tengono solo i dati da qui
+
+def ok(name):
+    return not name.startswith('Team ') and name not in ('World', 'USA')  # esclude le squadre dell'All-Star Game
 ET = ZoneInfo('America/New_York')
 
 def get(url):
@@ -62,6 +65,7 @@ def main():
     os.makedirs('data', exist_ok=True)
     path = 'data/games.json'
     rows = json.load(open(path, encoding='utf-8')) if os.path.exists(path) else []
+    rows = [r for r in rows if r[1] >= START and ok(r[2]) and ok(r[3])]
     known = {r[0] for r in rows}
     last = max((r[1] for r in rows), default=None)
     today = dt.datetime.now(ET).date()
@@ -70,7 +74,8 @@ def main():
         sb = get(BASE + 'scoreboard?limit=100&dates=' + d.strftime('%Y%m%d')) or {}
         evs = [e for e in sb.get('events', [])
                if e['status']['type'].get('completed') and e['id'] not in known
-               and (e.get('season') or {}).get('type') != 1]
+               and (e.get('season') or {}).get('type') != 1
+               and all(ok(c['team']['displayName']) for c in e['competitions'][0]['competitors'])]
         with ThreadPoolExecutor(6) as ex:
             boxes = list(ex.map(lambda e: get(BASE + 'summary?event=' + e['id']), evs))
         for e, b in zip(evs, boxes):
