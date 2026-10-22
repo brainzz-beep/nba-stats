@@ -71,5 +71,6 @@ window.show=function(t){
   if(!R.length){$('#app').innerHTML='<p>Nessun dato disponibile.</p>';return}
   $('#app').innerHTML=t==='c'?pageC():pageV();if(t==='v')wireV()};
 document.querySelector('nav').insertAdjacentHTML('beforeend','<button data-t="c">Classifica</button><button data-t="v">Verifica</button>');
-window.__extra={pageC,pageV,wireV,ctx,logPreds};
+fetch('data/preds.json?'+Date.now()).then(r=>r.ok?r.json():{}).then(j=>{window.SP=j}).catch(()=>{});
+  window.__extra={pageC,pageV,wireV,ctx,logPreds};
 })();
