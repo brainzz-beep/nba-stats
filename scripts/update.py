@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
 BASE = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/'
-START = os.environ.get('START_DATE', '2026-10-01')  # inizio della stagione corrente: si tengono solo i dati da qui
+START = os.environ.get('START_DATE', '2025-10-01')  # inizio della stagione corrente: si tengono solo i dati da qui
 
 def ok(name):
     return not name.startswith('Team ') and name not in ('World', 'USA')  # esclude le squadre dell'All-Star Game
