@@ -8,7 +8,7 @@ const pc=x=>(x*100).toFixed(0)+'%';
 let PL=[];
 
 // partite della serata: la prima partita non ancora iniziata e tutte quelle che iniziano entro 10 ore da lei
-function slate(){const now=Date.now(),up=T.games.filter(g=>!g.done&&new Date(g.date)>now).sort((a,b)=>new Date(a.date)-new Date(b.date));
+function slate(){const now=Date.now(),up=T.games.filter(g=>!g.done&&new Date(g.date)>now-5*36e5).sort((a,b)=>new Date(a.date)-new Date(b.date));
   return up.length?up.filter(g=>new Date(g.date)-new Date(up[0].date)<10*36e5):[]}
 
 function pool(gs){
