@@ -54,7 +54,7 @@ function wireV(){const f=()=>{const v=i=>parseFloat(($(i).value||'').replace(','
 // classifica e risultati dell'ultima giornata, calcolati dalle partite scaricate
 function pageC(){
   const by={};for(const k in tg)(by[tg[k].gid]??=[]).push(tg[k]);
-  const G=Object.values(by).filter(a=>a.length===2).map(a=>({d:tgp[a[0].gid+'|'+a[0].team].d,a})).sort((x,y)=>x.d<y.d?-1:1),rec={};
+  const G=Object.values(by).filter(a=>a.length===2).map(a=>({d:tgp[a[0].gid+'|'+a[0].team].d,a})).filter(x=>x.d>=(window.CS||'')).sort((x,y)=>x.d<y.d?-1:1),rec={};
   for(const{a}of G)for(const[u,v]of[[a[0],a[1]],[a[1],a[0]]]){const r=rec[u.team]??={w:0,l:0,pf:0,pa:0,h:[]},w=u.pts>v.pts;w?r.w++:r.l++;r.pf+=u.pts;r.pa+=v.pts;r.h.push(w)}
   const ld=G.length?G[G.length-1].d:'',last=G.filter(x=>x.d===ld);
   const conf=(nm,set)=>{const l=[...set].map(t=>({t,...(rec[t]||{w:0,l:0,pf:0,pa:0,h:[]})}));
