@@ -67,11 +67,19 @@ def main():
     rows = json.load(open(path, encoding='utf-8')) if os.path.exists(path) else []
     rows = [r for r in rows if r[1] >= START and ok(r[2]) and ok(r[3])]
     known = {r[0] for r in rows}
+    lines = json.load(open('data/lines.json', encoding='utf-8')) if os.path.exists('data/lines.json') else {}
     last = max((r[1] for r in rows), default=None)
     today = dt.datetime.now(ET).date()
     d = dt.date.fromisoformat(last) - dt.timedelta(days=2) if last else dt.date.fromisoformat(START)
+    miss = [r[1] for r in rows if r[0] not in lines]
+    if miss: d = min(d, dt.date.fromisoformat(min(miss)))  # recupera i punteggi per quarti delle partite già scaricate
     while d <= today:
         sb = get(BASE + 'scoreboard?limit=100&dates=' + d.strftime('%Y%m%d')) or {}
+        for e in sb.get('events', []):
+            cs = e['competitions'][0]['competitors']
+            if e['status']['type'].get('completed') and all(ok(c['team']['displayName']) for c in cs):
+                q = {c['team']['displayName']: [int(num(l.get('value'))) for l in c.get('linescores', [])] for c in cs}
+                if all(q.values()): lines[e['id']] = q
         evs = [e for e in sb.get('events', [])
                if e['status']['type'].get('completed') and e['id'] not in known
                and (e.get('season') or {}).get('type') != 1
@@ -86,6 +94,7 @@ def main():
         d += dt.timedelta(days=1)
     rows.sort(key=lambda r: r[1])
     dump(path, rows)
+    dump('data/lines.json', lines)
 
     # partite in programma (oggi e domani) con linea e infortuni
     games = []
