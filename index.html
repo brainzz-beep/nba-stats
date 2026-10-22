@@ -33,7 +33,7 @@ const memo={};
   const j=async u=>{try{const r=await fetch(u+'?'+Date.now());return r.ok?await r.json():null}catch(e){return null}};
   R=await j('data/games.json')||[];T=await j('data/today.json')||T;
   const ex=n=>/^Team /.test(n);
-  if(R.length){const[y,m]=R.reduce((a,r)=>r[1]>a?r[1]:a,'').split('-').map(Number);const ss=(m>=8?y:y-1)+'-08-01';R=R.filter(r=>r[1]>=ss&&!ex(r[2])&&!ex(r[3]))}
+  if(R.length){const[y,m]=R.reduce((a,r)=>r[1]>a?r[1]:a,'').split('-').map(Number);const cs=(m>=8?y:y-1);window.CS=cs+'-08-01';const ss=(cs-1)+'-08-01';R=R.filter(r=>r[1]>=ss&&!ex(r[2])&&!ex(r[3]))}
   if(!R.length){$('#app').innerHTML='<p>Nessun dato di questa stagione disponibile. Su GitHub apri Actions → "Aggiorna dati NBA" → Run workflow.</p>';return}
   init();show('g');
 })();
