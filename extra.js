@@ -31,7 +31,7 @@ const iv=setInterval(()=>{if(typeof R!=='undefined'&&R.length&&T.games.length){c
 setTimeout(()=>clearInterval(iv),30000);
 
 function pageV(){
-  const pr=JSON.parse(localStorage.getItem('preds')||'{}'),bins=[[.5,.6],[.6,.7],[.7,.8],[.8,1.01]].map(b=>({b,n:0,h:0,c:0}));let pend=0,tot=0,hit=0;
+  const pr={...(window.SP||{}),...JSON.parse(localStorage.getItem('preds')||'{}')},bins=[[.5,.6],[.6,.7],[.7,.8],[.8,1.01]].map(b=>({b,n:0,h:0,c:0}));let pend=0,tot=0,hit=0;
   for(const k in pr){const[gid,n,s]=k.split('|'),[P,base]=pr[k],row=(byP[n]||[]).find(r=>r[0]===gid);
     if(!row){pend++;continue}
     const conf=Math.max(P,1-P),h=(F[s](row)>base)===(P>=.5),b=bins.find(x=>conf>=x.b[0]&&conf<x.b[1]);
