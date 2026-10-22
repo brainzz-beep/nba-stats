@@ -84,6 +84,7 @@ def main():
 
     # partite in programma (oggi e domani) con linea e infortuni
     games = []
+    tids = {}
     for off in (0, 1):
         day = today + dt.timedelta(days=off)
         sb = get(BASE + 'scoreboard?limit=100&dates=' + day.strftime('%Y%m%d')) or {}
@@ -92,6 +93,9 @@ def main():
             home = next((x for x in c['competitors'] if x.get('homeAway') == 'home'), None)
             away = next((x for x in c['competitors'] if x.get('homeAway') == 'away'), None)
             if not home or not away: continue
+            if not e['status']['type'].get('completed'):
+                tids[home['team']['displayName']] = home['team']['id']
+                tids[away['team']['displayName']] = away['team']['id']
             o = (c.get('odds') or [{}])[0]
             games.append({'id': e['id'], 'date': e['date'], 'done': bool(e['status']['type'].get('completed')),
                           'home': home['team']['displayName'], 'away': away['team']['displayName'],
@@ -102,8 +106,16 @@ def main():
                                            's': i.get('status', ''),
                                            'd': (i.get('shortComment') or '')[:140]}
                                           for i in t.get('injuries', [])]
-    dump('data/today.json', {'updated': dt.datetime.utcnow().isoformat() + 'Z', 'games': games, 'injuries': inj})
-    print('righe:', len(rows), '| partite in programma:', len(games), '| squadre con infortuni:', len(inj))
+    rosters = {}
+    for name, tid in tids.items():
+        ath = (get(BASE + 'teams/%s/roster' % tid) or {}).get('athletes', [])
+        flat = []
+        for a in ath:
+            flat += a.get('items', [a]) if isinstance(a, dict) else []
+        rosters[name] = [{'n': a.get('displayName', ''), 'p': (a.get('position') or {}).get('abbreviation', '')}
+                         for a in flat if a.get('displayName')]
+    dump('data/today.json', {'updated': dt.datetime.utcnow().isoformat() + 'Z', 'games': games, 'injuries': inj, 'rosters': rosters})
+    print('righe:', len(rows), '| partite in programma:', len(games), '| squadre con infortuni:', len(inj), '| rose:', len(rosters))
 
 if __name__ == '__main__':
     main()
