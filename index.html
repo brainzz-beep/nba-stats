@@ -26,13 +26,15 @@ const M=[['PTS','Attacco (punti)',1,2],['OPP','Difesa (punti subiti)',-1,2],['RE
 const mean=(a,f)=>a.length?a.reduce((s,x)=>s+f(x),0)/a.length:null;
 const fx=(v,d=1)=>v==null?'–':v.toFixed(d);
 const grp=p=>/C/.test(p||'')?'C':/F/.test(p||'')?'F':/G/.test(p||'')?'G':'';
-let R=[],T={games:[],injuries:{}},byP={},byO={},P={},tg={},TS={},SA={},RK={},cut='';
+let R=[],T={games:[],injuries:{}},byP={},byO={},P={},tg={},TS={},SA={},RK={},tgp={},TGL={},RT={};
 const memo={};
 
 (async()=>{
   const j=async u=>{try{const r=await fetch(u+'?'+Date.now());return r.ok?await r.json():null}catch(e){return null}};
   R=await j('data/games.json')||[];T=await j('data/today.json')||T;
-  if(!R.length){$('#app').innerHTML='<p>Dati non ancora disponibili. Su GitHub apri Actions → "Aggiorna dati NBA" → Run workflow.</p>';return}
+  const ex=n=>/^Team /.test(n);
+  if(R.length){const[y,m]=R.reduce((a,r)=>r[1]>a?r[1]:a,'').split('-').map(Number);const ss=(m>=8?y:y-1)+'-08-01';R=R.filter(r=>r[1]>=ss&&!ex(r[2])&&!ex(r[3]))}
+  if(!R.length){$('#app').innerHTML='<p>Nessun dato di questa stagione disponibile. Su GitHub apri Actions → "Aggiorna dati NBA" → Run workflow.</p>';return}
   init();show('g');
 })();
 
@@ -41,15 +43,17 @@ function init(){
   for(const r of R){
     (byP[r[5]]??=[]).push(r);(byO[r[3]]??=[]).push(r);
     const t=tg[r[0]+'|'+r[2]]??={gid:r[0],team:r[2],opp:r[3],pts:0,reb:0,ast:0,stl:0,blk:0,tpm:0,tpa:0};
+    (tgp[r[0]+'|'+r[2]]??={gid:r[0],team:r[2],d:r[1],set:new Set()}).set.add(r[5]);
     t.pts+=r[8];t.reb+=r[15];t.ast+=r[16];t.stl+=r[17];t.blk+=r[18];t.tpm+=r[11];t.tpa+=r[12];
     const p=P[r[5]]??={team:'',pos:'',d:''};p.team=r[2];p.d=r[1];if(r[6])p.pos=r[6];
   }
   for(const t of Object.values(tg))(TS[t.team]??=[]).push(t);
+  for(const g of Object.values(tgp))(TGL[g.team]??=[]).push(g);
+  for(const t in T.rosters||{})for(const x of T.rosters[t])RT[x.n]=t;
   for(const t in TS){const g=TS[t].slice(-15),o=g.map(x=>tg[x.gid+'|'+x.opp]?.pts).filter(v=>v!=null);
     SA[t]={PTS:mean(g,x=>x.pts),OPP:o.length?o.reduce((a,b)=>a+b)/o.length:null,REB:mean(g,x=>x.reb),AST:mean(g,x=>x.ast),STL:mean(g,x=>x.stl),BLK:mean(g,x=>x.blk),
       TP:100*g.reduce((s,x)=>s+x.tpm,0)/Math.max(1,g.reduce((s,x)=>s+x.tpa,0))}}
   for(const[k,,d]of M){const l=Object.keys(SA).filter(t=>SA[t][k]!=null).sort((a,b)=>(SA[b][k]-SA[a][k])*d);l.forEach((t,i)=>(RK[t]??={})[k]=i+1)}
-  const ld=new Date(R[R.length-1][1]+'T12:00:00Z');ld.setUTCDate(ld.getUTCDate()-14);cut=ld.toISOString().slice(0,10);
 }
 
 function strn(t){const r=RK[t];if(!r)return'';const f=[],w=[];
@@ -65,32 +69,50 @@ const bm={};
 function lg(s,g){const k=s+g;if(k in bm)return bm[k];let sum=0,c=0;const f=F[s];
   for(const r of R){if(r[7]<12||(g&&grp(r[6]||P[r[5]].pos)!==g))continue;const m=pm(r[5],s);if(m>=.8){sum+=f(r)/m;c++}}
   return bm[k]=c?sum/c:1}
+const tof=n=>RT[n]||P[n].team;
 function rost(t){const ro=(T.rosters||{})[t];
-  return ro&&ro.length?ro.map(x=>x.n).filter(n=>byP[n]):Object.keys(P).filter(n=>P[n].team===t&&P[n].d>=cut)}
+  return ro&&ro.length?ro.map(x=>x.n).filter(n=>byP[n]):Object.keys(P).filter(n=>tof(n)===t)}
+// effetto delle assenze: mix di dati reali (partite con/senza il compagno) e stima a priori (produzione redistribuita)
+function ab(n,s,t,outs){
+  const f=F[s],rows=(byP[n]||[]).filter(r=>r[2]===t);if(!rows.length)return 0;
+  const mine=mean(rows,f);let tot=0;
+  const rest=rost(t).filter(m=>m!==n&&!outs.includes(m));
+  const sumRest=rest.reduce((a,m)=>a+(mean((byP[m]||[]).filter(r=>r[2]===t),f)||0),0)+mine;
+  for(const x of outs){
+    const xr=(byP[x]||[]).filter(r=>r[2]===t);if(!xr.length)continue;
+    const first=xr[0][1],pre=[],ab_=[];
+    for(const r of rows){const g=tgp[r[0]+'|'+t];if(!g||g.d<first)continue;(g.set.has(x)?pre:ab_).push(r)}
+    const prior=mean(xr,f)*.65*(sumRest>0?mine/sumRest:0);
+    const emp=ab_.length&&pre.length?mean(ab_,f)-mean(pre,f):null,w=emp==null?0:ab_.length/(ab_.length+6);
+    tot+=w*(emp??0)+(1-w)*prior}
+  return tot}
 function pm(n,s){const k=n+s;return k in memo?memo[k]:memo[k]=mean((byP[n]||[]).slice(-30),F[s])}
-function proj(n,s,opp){
+function proj(n,s,opp,t,outs){
   const rows=byP[n];if(!rows)return null;const f=F[s];
   const base=.5*mean(rows.slice(-10),f)+.5*mean(rows.slice(-30),f);
   const g=grp(P[n].pos);let sum=0,c=0;
   for(const r of byO[opp]||[]){if(r[7]<12||(g&&grp(r[6]||P[r[5]].pos)!==g))continue;const m=pm(r[5],s);if(m>=.8){sum+=f(r)/m;c++}}
   let fac=c?(sum/c)/lg(s,g):1;fac=Math.min(1.25,Math.max(.8,1+(fac-1)*c/(c+30)));
-  const vs=rows.filter(r=>r[3]===opp);
-  return{p:base*fac,fac,n:c,vs:mean(vs,f),nv:vs.length}}
+  const vs=rows.filter(r=>r[3]===opp);let a=0;
+  if(outs&&outs.length){const b0=base*fac;a=Math.max(-.2*b0,Math.min(.4*b0,ab(n,s,t,outs)))}
+  return{p:base*fac+a,fac,ab:a,n:c,vs:mean(vs,f),nv:vs.length}}
 
-function cell(n,s,o){const r=proj(n,s,o);if(!r)return'<td>–</td>';
-  return`<td><b>${fx(r.p)}</b> <small>${r.fac>=1?'+':''}${((r.fac-1)*100).toFixed(0)}% · n${r.n}${r.nv?` · vs ${fx(r.vs)} (${r.nv})`:''}</small><br><input class=l data-k="${n}|${s}|${o}" data-p="${r.p}" inputmode=decimal placeholder="linea"> <span></span></td>`}
+function cell(n,s,o,t,outs){const r=proj(n,s,o,t,outs);if(!r)return'<td>–</td>';
+  return`<td><b>${fx(r.p)}</b> <small>${r.fac>=1?'+':''}${((r.fac-1)*100).toFixed(0)}% · n${r.n}${Math.abs(r.ab)>=.05?` · assenze ${r.ab>0?'+':''}${r.ab.toFixed(1)}`:''}${r.nv?` · vs ${fx(r.vs)} (${r.nv})`:''}</small><br><input class=l data-k="${n}|${s}|${o}" data-p="${r.p}" inputmode=decimal placeholder="linea"> <span></span></td>`}
 
 function edge(i){const v=parseFloat(i.value.replace(',','.')),sp=i.nextElementSibling;
   if(!(v>0)){sp.textContent='';return}const p=+i.dataset.p,d=(p-v)/v;
   sp.innerHTML=Math.abs(d)<.06?'<span class=mu>nessun vantaggio</span>':d>0?`<span class=ok>OVER (+${(p-v).toFixed(1)})</span>`:`<span class=ko>UNDER (${(p-v).toFixed(1)})</span>`}
 
+const injl=t=>(T.injuries[t]||[]).map(i=>`${i.n} <small>(${i.s}${byP[i.n]?` · ${fx(mean(byP[i.n],F.PTS))} pt, ${fx(mean(byP[i.n],F.MIN),0)} min`:''})</small>`).join(', ')||'nessuno segnalato';
 function side(t,o){
   const inj=T.injuries[t]||[],out=new Set(inj.filter(i=>/out/i.test(i.s)).map(i=>i.n));
+  const outN=[...out].filter(n=>byP[n]);
   const pl=rost(t).filter(n=>!out.has(n)).map(n=>[n,mean(byP[n].slice(-10),F.MIN)]).sort((a,b)=>b[1]-a[1]).slice(0,8);
   return`<h4>${t}</h4><div class=sm>${strn(t)}</div>
-  <div class=sm><b>Infortuni:</b> ${inj.map(i=>`${i.n} <small>(${i.s})</small>`).join(', ')||'nessuno segnalato'}</div>
+  <div class=sm><b>Infortuni:</b> ${injl(t)}</div>
   <div class=sc><table><tr><th>Giocatore (proiezione vs ${o})</th><th>PTS</th><th>REB</th><th>AST</th><th>3PM</th></tr>
-  ${pl.map(([n])=>`<tr><td>${n} <small>${P[n].pos}</small></td>${['PTS','REB','AST','3PM'].map(s=>cell(n,s,o)).join('')}</tr>`).join('')}</table></div>`}
+  ${pl.map(([n])=>`<tr><td>${n} <small>${P[n].pos}</small></td>${['PTS','REB','AST','3PM'].map(s=>cell(n,s,o,t,outN)).join('')}</tr>`).join('')}</table></div>`}
 
 function pageG(){
   const gs=T.games.filter(g=>!g.done);
@@ -111,25 +133,18 @@ function drawS(){
   const t=$('#st').value,o=$('#so').value;
   const pl=rost(t).sort((a,b)=>mean(byP[b].slice(-10),F.MIN)-mean(byP[a].slice(-10),F.MIN));
   const tab=f=>`<div class=sc><table><tr><th>Giocatore</th>${th()}</tr>${pl.map(n=>{const r=byP[n].filter(f);return r.length?`<tr><td>${n}</td>${tds(r)}</tr>`:''}).join('')}</table></div>`;
-  $('#so_out').innerHTML=`<div class=card><div class=sm>${strn(t)}</div><div class=sm><b>Infortuni:</b> ${(T.injuries[t]||[]).map(i=>`${i.n} (${i.s})`).join(', ')||'nessuno segnalato'}</div></div>
+  $('#so_out').innerHTML=`<div class=card><div class=sm>${strn(t)}</div><div class=sm><b>Infortuni:</b> ${injl(t)}</div></div>
    <h4>Media generale</h4>${tab(r=>r[2]===t)}${o==='Tutte'?'':`<h4>Media contro ${o}</h4>${tab(r=>r[2]===t&&r[3]===o)}`}`}
 
-function pageP(){const ps=Object.keys(P).sort();return`<div class=row>Giocatore ${sel('pp',ps,ps[0])}</div><div id=pp_out></div>`}
+const SUF=/^(Jr\.?|Sr\.?|II|III|IV|V)$/i;
+function sn(n){const t=n.trim().split(/\s+/),r=t.slice(1),c=r.filter(x=>!SUF.test(x));return{sur:c.join(' ')||t[0],full:r.join(' ')||t[0],first:r.length?t[0]:''}}
+const lab=n=>{const s=sn(n);return s.first?`${s.full}, ${s.first}`:n};
+const bySur=(a,b)=>{const x=sn(a),y=sn(b);return x.sur.localeCompare(y.sur,'it')||x.first.localeCompare(y.first,'it')};
+function pageP(){const g={};for(const n in byP)(g[tof(n)]??=[]).push(n);
+  return`<div class=row>Giocatore (per squadra, in ordine di cognome) <select id=pp>${Object.keys(g).sort().map(t=>`<optgroup label="${t}">${g[t].sort(bySur).map(n=>`<option value="${n}">${lab(n)}</option>`).join('')}</optgroup>`).join('')}</select></div><div id=pp_out></div>`}
 function drawP(){
   const n=$('#pp').value,rows=byP[n],os=[...new Set(rows.map(r=>r[3]))].sort();
   $('#pp_out').innerHTML=`<div class=sc><table><tr><th>Avversaria</th>${th()}</tr><tr><td><b>Tutte</b></td>${tds(rows)}</tr>
-  ${os.map(o=>`<tr><td>${o}</td>${tds(rows.filter(r=>r[3]===o))}</tr>`).join('')}</table></div>`}
-
-function show(t){
-  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
-  $('#app').innerHTML=t==='g'?pageG():t==='s'?pageS():pageP();
-  if(t==='s'){drawS();$('#st').onchange=$('#so').onchange=drawS}
-  if(t==='p'){drawP();$('#pp').onchange=drawP}
-  document.querySelectorAll('input.l').forEach(i=>{const v=localStorage.getItem('l|'+i.dataset.k);if(v){i.value=v;edge(i)}});
-}
-document.querySelector('nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
-document.addEventListener('input',e=>{if(e.target.classList.contains('l')){try{localStorage.setItem('l|'+e.target.dataset.k,e.target.value)}catch(x){}edge(e.target)}});
-</script></body></html>
   ${os.map(o=>`<tr><td>${o}</td>${tds(rows.filter(r=>r[3]===o))}</tr>`).join('')}</table></div>`}
 
 function show(t){
