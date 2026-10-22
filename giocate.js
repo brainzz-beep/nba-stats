@@ -2,7 +2,8 @@
 (()=>{
 const LBL={PTS:'punti',REB:'rimbalzi',AST:'assist','3PM':'triple',STL:'rubate',BLK:'stoppate'},DEF={PTS:20.5,REB:8.5,AST:6.5,'3PM':2.5,STL:1.5,BLK:1.5},MINB={PTS:8,REB:3,AST:2,'3PM':1};
 const cdf=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p};
-const pov=(mu,sd,L)=>1-cdf(((Number.isInteger(L)?L+.5:L)-mu)/sd);
+const pth=(mu,sd,th)=>1-cdf((th-mu)/sd);
+const pov=(mu,sd,L)=>pth(mu,sd,Number.isInteger(L)?L+.5:L);
 const pc=x=>(x*100).toFixed(0)+'%';
 let PL=[];
 
@@ -30,14 +31,14 @@ function pageB(){
   if(!PL.length)return'<p>Nessuna partita in programma nelle prossime 26 ore.</p>';
   const L=[];
   for(const p of PL){if(p.min<18)continue;for(const s of['PTS','REB','AST','3PM']){const e=est(p,s);if(!e||e.base<MINB[s])continue;
-    const L0=Math.floor(e.base)+.5,P=pov(e.p,e.sd,L0);L.push({p,s,e,L0,P,ed:Math.abs(P-.5),up:e.p/e.base-1})}}
+    const L0=Math.round(e.base-.5)+.5,P=pth(e.p,e.sd,e.base);L.push({p,s,e,L0,P,ed:Math.abs(P-.5),up:e.p/e.base-1})}}
   const best=[...L].sort((a,b)=>b.ed-a.ed).slice(0,12);
-  const row1=x=>`<tr><td>${x.p.n} <b class=${x.P>=.5?'ok':'ko'}>${x.P>=.5?'OVER':'UNDER'} ${x.L0}</b> ${LBL[x.s]}</td><td>${gm(x.p)}</td><td>${fx(x.e.p)}</td><td><b>${pc(Math.max(x.P,1-x.P))}</b></td><td><small>media ${fx(x.e.base)} · matchup ${((x.e.fac-1)*100).toFixed(0)}% (n${x.e.n}) · assenze ${x.e.ab>=0?'+':''}${x.e.ab.toFixed(1)}</small></td></tr>`;
+  const row1=x=>`<tr><td>${x.p.n} <b class=${x.P>=.5?'ok':'ko'}>${x.P>=.5?'OVER':'UNDER'}</b> ${LBL[x.s]}</td><td>${gm(x.p)}</td><td>${fx(x.e.p)}</td><td>${x.L0}</td><td><b>${pc(Math.max(x.P,1-x.P))}</b></td><td><small>media ${fx(x.e.base)} · matchup ${((x.e.fac-1)*100).toFixed(0)}% (n${x.e.n}) · assenze ${x.e.ab>=0?'+':''}${x.e.ab.toFixed(1)}</small></td></tr>`;
   const mu=[...L].sort((a,b)=>b.up-a.up),top=mu.slice(0,8),bot=mu.slice(-5).reverse();
   const row2=x=>`<tr><td>${x.p.n}</td><td>${LBL[x.s]}</td><td>${gm(x.p)}</td><td>${fx(x.e.p)} <small>(media ${fx(x.e.base)})</small></td><td class=${x.up>=0?'ok':'ko'}>${x.up>=0?'+':''}${(x.up*100).toFixed(0)}%</td></tr>`;
   return`<div class=card><h3>Migliori giocate della notte</h3>
-  <div class="sm mu">La linea usata è la media recente del giocatore arrotondata a .5: è una stima della linea del bookmaker, non quella vera. Qui conta quanto matchup e assenze spostano la proiezione rispetto a quella linea. Con la linea reale usa il calcolatore qui sotto.</div>
-  ${tbl(['Giocata','Partita','Proiezione','Probabilità','Dettagli'],best.map(row1))}</div>
+  <div class="sm mu">Le giocate sono ordinate per quanto matchup e assenze spostano la proiezione rispetto alla media recente del giocatore. La probabilità indica quanto è probabile superare (o restare sotto) quella media. La linea indicativa è la media arrotondata a .5 ed è solo una stima della linea del bookmaker: con la linea reale usa il calcolatore qui sotto.</div>
+  ${tbl(['Giocata','Partita','Proiezione','Linea indic.','Prob. vs media','Dettagli'],best.map(row1))}</div>
   <div class=card><h3>Migliori matchup</h3>
   <h4>Più favorevoli</h4>${tbl(['Giocatore','Stat.','Partita','Proiezione','Variazione'],top.map(row2))}
   <h4>Più sfavorevoli</h4>${tbl(['Giocatore','Stat.','Partita','Proiezione','Variazione'],bot.map(row2))}</div>
