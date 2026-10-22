@@ -61,13 +61,19 @@ function comp(a,b){const x=SA[a],y=SA[b],o=[];if(!x||!y)return o;
     if(Math.abs(df)>=th){const w=df>0?[a,b,x,y]:[b,a,y,x];o.push(`${w[0]} è più forte di ${w[1]} in ${l}: ${fx(w[2][k])} contro ${fx(w[3][k])}`)}}
   return o.slice(0,6)}
 
+const bm={};
+function lg(s,g){const k=s+g;if(k in bm)return bm[k];let sum=0,c=0;const f=F[s];
+  for(const r of R){if(r[7]<12||(g&&grp(r[6]||P[r[5]].pos)!==g))continue;const m=pm(r[5],s);if(m>=.8){sum+=f(r)/m;c++}}
+  return bm[k]=c?sum/c:1}
+function rost(t){const ro=(T.rosters||{})[t];
+  return ro&&ro.length?ro.map(x=>x.n).filter(n=>byP[n]):Object.keys(P).filter(n=>P[n].team===t&&P[n].d>=cut)}
 function pm(n,s){const k=n+s;return k in memo?memo[k]:memo[k]=mean((byP[n]||[]).slice(-30),F[s])}
 function proj(n,s,opp){
   const rows=byP[n];if(!rows)return null;const f=F[s];
   const base=.5*mean(rows.slice(-10),f)+.5*mean(rows.slice(-30),f);
   const g=grp(P[n].pos);let sum=0,c=0;
   for(const r of byO[opp]||[]){if(r[7]<12||(g&&grp(r[6]||P[r[5]].pos)!==g))continue;const m=pm(r[5],s);if(m>=.8){sum+=f(r)/m;c++}}
-  let fac=c?sum/c:1;fac=Math.min(1.25,Math.max(.8,1+(fac-1)*c/(c+30)));
+  let fac=c?(sum/c)/lg(s,g):1;fac=Math.min(1.25,Math.max(.8,1+(fac-1)*c/(c+30)));
   const vs=rows.filter(r=>r[3]===opp);
   return{p:base*fac,fac,n:c,vs:mean(vs,f),nv:vs.length}}
 
@@ -80,7 +86,7 @@ function edge(i){const v=parseFloat(i.value.replace(',','.')),sp=i.nextElementSi
 
 function side(t,o){
   const inj=T.injuries[t]||[],out=new Set(inj.filter(i=>/out/i.test(i.s)).map(i=>i.n));
-  const pl=Object.keys(P).filter(n=>P[n].team===t&&!out.has(n)&&P[n].d>=cut).map(n=>[n,mean(byP[n].slice(-10),F.MIN)]).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const pl=rost(t).filter(n=>!out.has(n)).map(n=>[n,mean(byP[n].slice(-10),F.MIN)]).sort((a,b)=>b[1]-a[1]).slice(0,8);
   return`<h4>${t}</h4><div class=sm>${strn(t)}</div>
   <div class=sm><b>Infortuni:</b> ${inj.map(i=>`${i.n} <small>(${i.s})</small>`).join(', ')||'nessuno segnalato'}</div>
   <div class=sc><table><tr><th>Giocatore (proiezione vs ${o})</th><th>PTS</th><th>REB</th><th>AST</th><th>3PM</th></tr>
@@ -103,7 +109,7 @@ function pageS(){
   const ts=Object.keys(TS).sort();return`<div class=row>Squadra ${sel('st',ts,ts[0])} Avversaria ${sel('so',['Tutte',...ts],'Tutte')}</div><div id=so_out></div>`}
 function drawS(){
   const t=$('#st').value,o=$('#so').value;
-  const pl=Object.keys(P).filter(n=>P[n].team===t&&P[n].d>=cut).sort((a,b)=>mean(byP[b].slice(-10),F.MIN)-mean(byP[a].slice(-10),F.MIN));
+  const pl=rost(t).sort((a,b)=>mean(byP[b].slice(-10),F.MIN)-mean(byP[a].slice(-10),F.MIN));
   const tab=f=>`<div class=sc><table><tr><th>Giocatore</th>${th()}</tr>${pl.map(n=>{const r=byP[n].filter(f);return r.length?`<tr><td>${n}</td>${tds(r)}</tr>`:''}).join('')}</table></div>`;
   $('#so_out').innerHTML=`<div class=card><div class=sm>${strn(t)}</div><div class=sm><b>Infortuni:</b> ${(T.injuries[t]||[]).map(i=>`${i.n} (${i.s})`).join(', ')||'nessuno segnalato'}</div></div>
    <h4>Media generale</h4>${tab(r=>r[2]===t)}${o==='Tutte'?'':`<h4>Media contro ${o}</h4>${tab(r=>r[2]===t&&r[3]===o)}`}`}
@@ -112,6 +118,18 @@ function pageP(){const ps=Object.keys(P).sort();return`<div class=row>Giocatore 
 function drawP(){
   const n=$('#pp').value,rows=byP[n],os=[...new Set(rows.map(r=>r[3]))].sort();
   $('#pp_out').innerHTML=`<div class=sc><table><tr><th>Avversaria</th>${th()}</tr><tr><td><b>Tutte</b></td>${tds(rows)}</tr>
+  ${os.map(o=>`<tr><td>${o}</td>${tds(rows.filter(r=>r[3]===o))}</tr>`).join('')}</table></div>`}
+
+function show(t){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+  $('#app').innerHTML=t==='g'?pageG():t==='s'?pageS():pageP();
+  if(t==='s'){drawS();$('#st').onchange=$('#so').onchange=drawS}
+  if(t==='p'){drawP();$('#pp').onchange=drawP}
+  document.querySelectorAll('input.l').forEach(i=>{const v=localStorage.getItem('l|'+i.dataset.k);if(v){i.value=v;edge(i)}});
+}
+document.querySelector('nav').onclick=e=>{if(e.target.dataset.t)show(e.target.dataset.t)};
+document.addEventListener('input',e=>{if(e.target.classList.contains('l')){try{localStorage.setItem('l|'+e.target.dataset.k,e.target.value)}catch(x){}edge(e.target)}});
+</script></body></html>
   ${os.map(o=>`<tr><td>${o}</td>${tds(rows.filter(r=>r[3]===o))}</tr>`).join('')}</table></div>`}
 
 function show(t){
