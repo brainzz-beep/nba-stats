@@ -51,15 +51,24 @@ function why(p,s,e){const r=[],g=grp(P[p.n].pos),w=wk(p.o).find(z=>z.g===g&&z.s=
 const gm=p=>`${p.g.away} @ ${p.g.home}`;
 const tbl=(h,rows)=>`<div class=sc><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.join('')}</table></div>`;
 
+// le migliori della nottata: probabilità alta, almeno 10 partite di dati, almeno un motivo concreto, una sola giocata per giocatore
+function top(A){
+  const seen=new Set(),l=[...A].map(x=>({...x,c:Math.max(x.q,1-x.q),w:why(x.p,x.s,x.e)}))
+    .filter(x=>x.c>=.6&&byP[x.p.n].length>=10&&x.w.length).sort((a,b)=>b.c-a.c).filter(x=>!seen.has(x.p.n)&&seen.add(x.p.n)).slice(0,8);
+  const row=x=>`<tr><td>${x.p.n} <b class=${x.q>=.5?'ok':'ko'}>${x.q>=.5?'OVER':'UNDER'}</b> ${LBL[x.s]}</td><td>${gm(x.p)}</td><td>${fx(x.e.p)}</td><td>${x.L0}</td><td><b>${pc(x.c)}</b></td><td style="white-space:normal;text-align:left"><small>${x.w.slice(0,2).join('<br>')}</small></td></tr>`;
+  return`<div class=card><h3>Le migliori giocate della nottata</h3>
+  <div class="sm mu">Solo giocate con probabilità almeno del 60%, almeno 10 partite di dati e un motivo concreto (punto debole della difesa, storico, assenze, triple). Una sola giocata per giocatore.</div>
+  ${l.length?tbl(['Giocata','Partita','Proiezione','Linea indic.','Probabilità','Perché'],l.map(row)):'<p class="sm mu">Stanotte nessuna giocata supera questi criteri.</p>'}</div>`}
+
 function pageB(){
   const S=R.length?slate():[];PL=S.length?pool(S):[];
   if(!PL.length)return'<p>Nessuna partita in programma.</p>';
   const when=new Date(S[0].date).toLocaleString('it-IT',{weekday:'long',hour:'2-digit',minute:'2-digit'});
-  const cards=S.map(g=>{
+  const ALL=[];const cards=S.map(g=>{
     const ps=PL.filter(p=>p.g===g),L=[];
     for(const p of ps){if(p.min<18)continue;for(const s of['PTS','REB','AST','3PM']){const e=est(p,s);if(!e||e.base<MINB[s])continue;
       const q=pth(e.p,e.sd,e.base);L.push({p,s,e,q,ed:Math.abs(q-.5),L0:Math.round(e.base-.5)+.5})}}
-    const best=[...L].sort((a,b)=>b.ed-a.ed).slice(0,4);
+    ALL.push(...L);const best=[...L].sort((a,b)=>b.ed-a.ed).slice(0,4);
     const al=[];
     for(const[t,o]of[[g.away,g.home],[g.home,g.away]]){
       for(const z of wk(o).filter(z=>z.f>=1.1).sort((a,b)=>b.f-a.f).slice(0,2)){
@@ -74,7 +83,7 @@ function pageB(){
     ${al.length?`<h4>Punti deboli da sfruttare</h4><ul>${al.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
     <h4>Migliori giocate</h4>${best.length?tbl(['Giocata','Proiezione','Linea indic.','Prob. vs media','Perché'],best.map(row)):'<p class="sm mu">Nessuna giocata con dati sufficienti.</p>'}
     ${sp.length?`<h4>Storico contro questa avversaria</h4><ul>${sp.map(x=>`<li>${x.p.n}: media ${fx(x.e.vs)} ${LBL[x.s]} contro ${x.p.o} in ${x.e.nv} partite, contro ${fx(x.e.base)} di media recente</li>`).join('')}</ul>`:''}</div>`}).join('');
-  return`<p class="sm mu">Partite della serata (da ${when}). Le giocate sono ordinate per quanto matchup, storico e assenze spostano la proiezione rispetto alla media recente. La linea indicativa è la media arrotondata a .5: con la linea reale usa il calcolatore in fondo.</p>${cards}
+  return`<p class="sm mu">Partite della serata (da ${when}). Le giocate sono ordinate per quanto matchup, storico e assenze spostano la proiezione rispetto alla media recente. La linea indicativa è la media arrotondata a .5: con la linea reale usa il calcolatore in fondo.</p>${top(ALL)}${cards}
   <div class=card><h3>Chi supera una linea?</h3>
   <div class=row>Statistica <select id=bs>${Object.keys(LBL).map(s=>`<option value="${s}">${LBL[s]}</option>`).join('')}</select>
   Linea <input class=l id=bl value="${DEF.PTS}" inputmode=decimal></div><div id=bo></div></div>`}
