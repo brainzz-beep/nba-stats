@@ -71,6 +71,9 @@ def main():
     last = max((r[1] for r in rows), default=None)
     today = dt.datetime.now(ET).date()
     d = dt.date.fromisoformat(last) - dt.timedelta(days=2) if last else dt.date.fromisoformat(START)
+        first = min((r[1] for r in rows), default=None)
+    if first and first > (dt.date.fromisoformat(START) + dt.timedelta(days=40)).isoformat():
+        d = dt.date.fromisoformat(START)  # lo storico della stagione scorsa manca: scarica dall'inizio
     miss = [r[1] for r in rows if r[0] not in lines]
     if miss: d = min(d, dt.date.fromisoformat(min(miss)))  # recupera i punteggi per quarti delle partite già scaricate
     while d <= today:
