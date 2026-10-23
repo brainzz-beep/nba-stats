@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
 BASE = 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/'
-START = os.environ.get('START_DATE', '2025-10-01')  # inizio della stagione corrente: si tengono solo i dati da qui
+START = os.environ.get('START_DATE', '2025-10-01')  # inizio della stagione scorsa: si tengono i dati da qui
 
 def ok(name):
     return not name.startswith('Team ') and name not in ('World', 'USA')  # esclude le squadre dell'All-Star Game
@@ -71,7 +71,7 @@ def main():
     last = max((r[1] for r in rows), default=None)
     today = dt.datetime.now(ET).date()
     d = dt.date.fromisoformat(last) - dt.timedelta(days=2) if last else dt.date.fromisoformat(START)
-        first = min((r[1] for r in rows), default=None)
+    first = min((r[1] for r in rows), default=None)
     if first and first > (dt.date.fromisoformat(START) + dt.timedelta(days=40)).isoformat():
         d = dt.date.fromisoformat(START)  # lo storico della stagione scorsa manca: scarica dall'inizio
     miss = [r[1] for r in rows if r[0] not in lines]
