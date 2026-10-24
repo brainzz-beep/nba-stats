@@ -1,0 +1,17 @@
+name: Test del modello sul passato
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - run: node scripts/backtest.js
+      - run: |
+          git config user.name "nba-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || (git commit -m "test del modello" && git pull --rebase && git push)
