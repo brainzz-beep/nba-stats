@@ -1,0 +1,26 @@
+/* Aspetto del sito: si carica dopo lo stile base e lo sostituisce. Per tornare al vecchio aspetto basta togliere il collegamento in index.html. */
+:root{--bg:#f3f5f9;--fg:#141922;--mu:#667085;--bd:#e0e4eb;--ac:#1d428a;--ac2:#c8102e;--onac:#fff;--ok:#0a7d3b;--ko:#c8102e;--cd:#fff;--sh:0 1px 3px rgba(16,24,40,.09);--okb:#e1f5e9;--kob:#fde7ea}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1015;--fg:#e8ebf0;--mu:#97a1b0;--bd:#262c36;--ac:#7ea6ff;--ac2:#ff6b7d;--onac:#0d1015;--ok:#4cd07d;--ko:#ff7a8a;--cd:#161a21;--sh:none;--okb:#12301f;--kob:#3a1820}}
+body{font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:0 14px 40px}
+h1{font-size:24px;letter-spacing:-.3px;margin:0;padding:18px 0 6px 12px;border-left:5px solid var(--ac2)}
+nav{position:sticky;top:0;z-index:10;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:10px 0;margin:0 0 14px;background:var(--bg);border-bottom:1px solid var(--bd)}
+nav button,select{font:inherit;font-weight:600;padding:7px 14px;border:1px solid var(--bd);border-radius:999px;background:var(--cd);color:var(--fg);cursor:pointer;white-space:nowrap;max-width:100%}
+nav button:hover,select:hover{border-color:var(--ac)}
+nav button.on{background:var(--ac);color:var(--onac);border-color:var(--ac)}
+.card{background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh)}
+.card h3{margin:0 0 6px;font-size:17px;letter-spacing:-.2px}
+h4{margin:14px 0 6px;font-size:11.5px;text-transform:uppercase;letter-spacing:.7px;color:var(--mu)}
+table{font-variant-numeric:tabular-nums}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--bd)}
+td{padding:6px 8px;border-bottom:1px solid var(--bd)}
+th{padding:6px 8px}
+tr:hover td{background:rgba(127,127,127,.07)}
+.sc th:first-child,.sc td:first-child{position:sticky;left:0;background:var(--cd);z-index:1}
+b.ok,b.ko{display:inline-block;padding:1px 9px;border-radius:999px;font-size:11.5px;letter-spacing:.3px}
+b.ok{background:var(--okb);color:var(--ok)}
+b.ko{background:var(--kob);color:var(--ko)}
+input.l{width:64px;padding:5px 8px;border-radius:8px}
+.row{gap:10px}
+.gr:hover{background:rgba(127,127,127,.1)}
+ul{padding-left:20px}li{margin:3px 0}
+@media(max-width:600px){body{padding:0 8px 32px;font-size:13.5px}h1{font-size:20px}.card{padding:12px;border-radius:12px}}
