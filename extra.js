@@ -23,7 +23,7 @@ window.proj=(n,s,o,t,u)=>{const r=_p(n,s,o,t,u);if(r){const c=ctx(n,t||P[n].team
 function logPreds(){const G=window.__giocate;if(!G||!G.pool)return;
   const pr=JSON.parse(localStorage.getItem('preds')||'{}');let ch=0;
   for(const p of G.pool()){if(p.min<18||new Date(p.g.date)<=Date.now())continue;
-    for(const s of['PTS','REB','AST','3PM']){const k=`${p.g.id}|${p.n}|${s}`;if(k in pr)continue;
+    for(const s of G.STATS){const k=`${p.g.id}|${p.n}|${s}`;if(k in pr)continue;
       const e=G.est(p,s);if(!e||e.base<G.MINB[s])continue;const P=G.pth(e.p,e.sd,e.base);
       if(Math.abs(P-.5)<.1)continue;pr[k]=[+P.toFixed(3),+e.base.toFixed(2),+e.p.toFixed(2)];ch++}}
   if(ch)try{localStorage.setItem('preds',JSON.stringify(pr))}catch(x){}}
