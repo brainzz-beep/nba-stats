@@ -6,7 +6,7 @@ const ALL=JSON.parse(rd('data/games.json')).filter(r=>!/^Team /.test(r[2])&&!/^T
 const main=rd('index.html').match(/<script>([\s\S]*?)<\/script>/)[1],giocate=rd('giocate.js'),extra=rd('extra.js');
 const days=[...new Set(ALL.map(r=>r[1]))].sort();
 const from=process.env.BT_FROM||days[Math.floor(days.length*0.3)];
-const val={PTS:r=>r[8],REB:r=>r[15],AST:r=>r[16],'3PM':r=>r[11]};
+const val={PTS:r=>r[8],REB:r=>r[15],AST:r=>r[16],'3PM':r=>r[11],PR:r=>r[8]+r[15],PA:r=>r[8]+r[16],RA:r=>r[15]+r[16],PRA:r=>r[8]+r[15]+r[16]};const STATS=Object.keys(val);
 const el=()=>({innerHTML:'',value:'',textContent:'',style:{},classList:{toggle(){}},insertAdjacentHTML(){}});
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const preds=[];
@@ -25,7 +25,7 @@ async function day(D){
   vm.runInContext(main,ctx);vm.runInContext(giocate,ctx);vm.runInContext(extra,ctx);
   for(let i=0;i<300&&!vm.runInContext('typeof R!=="undefined"&&R.length>0',ctx);i++)await wait(10);
   const out=JSON.parse(vm.runInContext(`(()=>{const G=window.__giocate,o=[];for(const p of G.pool(${JSON.stringify(games)})){if(p.min<18)continue;
-    for(const s of['PTS','REB','AST','3PM']){const e=G.est(p,s);if(!e||e.base<G.MINB[s])continue;o.push([p.n,p.g.id,s,e.p,e.sd,e.base,byP[p.n].length])}}return JSON.stringify(o)})()`,ctx));
+    for(const s of G.STATS){const e=G.est(p,s);if(!e||e.base<G.MINB[s])continue;o.push([p.n,p.g.id,s,e.p,e.sd,e.base,byP[p.n].length])}}return JSON.stringify(o)})()`,ctx));
   const act={};for(const r of today)act[r[0]+'|'+r[5]]=r;
   for(const[n,gid,s,p,sd,base,ng]of out){const r=act[gid+'|'+n];if(!r)continue;const a=val[s](r),L0=Math.round(base-.5)+.5;
     preds.push({s,ng,q0:1-cdf((base-p)/Math.max(sd,.3)),o0:a>base,q1:1-cdf((L0-p)/Math.max(sd,.3)),o1:a>L0})}
@@ -45,7 +45,7 @@ function table(key){
   const brier=preds.length?preds.reduce((s,x)=>s+((x.q1)-(x.o1?1:0))**2,0)/preds.length:null;
   const res={generated:new Date().toISOString(),from,to:ds[ds.length-1]||null,days:ds.length,n:preds.length,brier,
     line:table('1'),avg:table('0'),
-    byStat:Object.fromEntries(['PTS','REB','AST','3PM'].map(s=>{const a=strong.filter(x=>x.s===s);return[s,{n:a.length,hit:hit(a)}]})),
+    byStat:Object.fromEntries(STATS.map(s=>{const a=strong.filter(x=>x.s===s);return[s,{n:a.length,hit:hit(a)}]})),
     top:{n:top.length,hit:hit(top)}};
   fs.mkdirSync('data',{recursive:true});fs.writeFileSync('data/backtest.json',JSON.stringify(res));
   console.log('giorni',res.days,'previsioni',res.n,'brier',brier&&brier.toFixed(4),'top',res.top.n,res.top.hit);
