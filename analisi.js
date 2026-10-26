@@ -1,6 +1,6 @@
 /* Analisi di una giocata: medie, storico contro l'avversaria e quante volte il giocatore ha superato la linea. */
 (()=>{
-const LBL={PTS:'punti',REB:'rimbalzi',AST:'assist','3PM':'triple',STL:'rubate',BLK:'stoppate'};
+const LBL=window.__giocate.LBL;
 const pc=x=>(x*100).toFixed(0)+'%';
 let PP=[];
 
