@@ -1,6 +1,12 @@
 /* Sezione "Giocate": migliori giocate della serata divise per partita, con i motivi (punti deboli delle difese, storico, triple, assenze). */
 (()=>{
-const LBL={PTS:'punti',REB:'rimbalzi',AST:'assist','3PM':'triple',STL:'rubate',BLK:'stoppate'},DEF={PTS:20.5,REB:8.5,AST:6.5,'3PM':2.5,STL:1.5,BLK:1.5},MINB={PTS:8,REB:3,AST:2,'3PM':1},ROLE={C:'centri',F:'ali',G:'guardie'};
+const LBL={PTS:'punti',REB:'rimbalzi',AST:'assist','3PM':'triple',PR:'punti + rimbalzi',PA:'punti + assist',RA:'rimbalzi + assist',PRA:'punti + rimbalzi + assist',STL:'rubate',BLK:'stoppate'},
+  DEF={PTS:20.5,REB:8.5,AST:6.5,'3PM':2.5,PR:28.5,PA:26.5,RA:12.5,PRA:34.5,STL:1.5,BLK:1.5},
+  MINB={PTS:8,REB:3,AST:2,'3PM':1,PR:10,PA:10,RA:5,PRA:12},ROLE={C:'centri',F:'ali',G:'guardie'};
+// combinate: statistiche sommate partita per partita (non compaiono nelle tabelle delle altre schede)
+const CMB={PR:r=>r[8]+r[15],PA:r=>r[8]+r[16],RA:r=>r[15]+r[16],PRA:r=>r[8]+r[15]+r[16]},PART={PR:['PTS','REB'],PA:['PTS','AST'],RA:['REB','AST'],PRA:['PTS','REB','AST']};
+for(const k in CMB)Object.defineProperty(F,k,{value:CMB[k],enumerable:false,configurable:true});
+const STATS=['PTS','REB','AST','3PM','PR','PA','RA','PRA'],BIGS=['PTS','PR','PA','PRA'];
 const cdf=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return z>0?1-p:p};
 const pth=(mu,sd,th)=>1-cdf((th-mu)/sd);
 const pov=(mu,sd,L)=>pth(mu,sd,Number.isInteger(L)?L+.5:L);
@@ -30,7 +36,7 @@ function est(p,s){
 // punti deboli di una difesa: quanto concede, per ruolo e statistica, rispetto alla media della lega
 const wkM={};
 function wk(o){if(wkM[o])return wkM[o];const out=[];
-  for(const g of['C','F','G'])for(const s of['PTS','REB','AST','3PM']){let sum=0,c=0;
+  for(const g of['C','F','G'])for(const s of STATS){let sum=0,c=0;
     for(const r of byO[o]||[]){if(r[7]<12||grp(r[6]||P[r[5]].pos)!==g)continue;const m=pm(r[5],s);if(m>=.8){sum+=F[s](r)/m;c++}}
     if(c>=15)out.push({g,s,f:(sum/c)/lg(s,g),c})}
   return wkM[o]=out}
@@ -43,11 +49,12 @@ function tp3(t){if(!TPm){TPm={};for(const k in TS){const o=TS[k].slice(-20).map(
 
 function why(p,s,e){const r=[],g=grp(P[p.n].pos),w=wk(p.o).find(z=>z.g===g&&z.s===s);
   if(w&&Math.abs(w.f-1)>=.1)r.push(`${p.o} concede il ${Math.abs((w.f-1)*100).toFixed(0)}% ${w.f>1?'in più':'in meno'} di ${LBL[s]} a ${ROLE[g]} (${w.c} partite)`);
-  if(e.nv>=2&&Math.abs(e.vs-e.base)>=(s==='PTS'?3:1)&&(e.vs>=1.3*e.base||e.vs<=.7*e.base))r.push(`contro ${p.o} media ${fx(e.vs)} in ${e.nv} partite (la sua media è ${fx(e.base)})`);
+  if(e.nv>=2&&Math.abs(e.vs-e.base)>=(BIGS.includes(s)?3:1)&&(e.vs>=1.3*e.base||e.vs<=.7*e.base))r.push(`contro ${p.o} media ${fx(e.vs)} in ${e.nv} partite (la sua media è ${fx(e.base)})`);
   if(Math.abs(e.ab)>=.8)r.push(`assenze nella sua squadra: ${e.ab>0?'+':''}${e.ab.toFixed(1)}`);
   if(s==='3PM'){const a=tp3(p.o);if(a)r.push(`${p.o} concede ${fx(a.m)} triple a partita (${a.rk}° su ${TPn})`)}
   return r}
 
+const parts=(p,s)=>PART[s]?'somma di '+PART[s].map(c=>{const z=proj(p.n,c,p.o,p.t,p.on);return z?`${LBL[c]} ${fx(z.p)}`:''}).join(' + '):'';
 const gm=p=>`${p.g.away} @ ${p.g.home}`;
 const tbl=(h,rows)=>`<div class=sc><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.join('')}</table></div>`;
 
@@ -55,7 +62,7 @@ const tbl=(h,rows)=>`<div class=sc><table><tr>${h.map(x=>`<th>${x}</th>`).join('
 function top(A){
   const seen=new Set(),l=[...A].map(x=>({...x,c:Math.max(x.q,1-x.q),w:why(x.p,x.s,x.e)}))
     .filter(x=>x.c>=.6&&byP[x.p.n].length>=10&&x.w.length).sort((a,b)=>b.c-a.c).filter(x=>!seen.has(x.p.n)&&seen.add(x.p.n)).slice(0,8);
-  const row=x=>`<tr><td>${x.p.n} <b class=${x.q>=.5?'ok':'ko'}>${x.q>=.5?'OVER':'UNDER'}</b> ${LBL[x.s]}</td><td>${gm(x.p)}</td><td>${fx(x.e.p)}</td><td>${x.L0}</td><td><b>${pc(x.c)}</b></td><td style="white-space:normal;text-align:left"><small>${x.w.slice(0,2).join('<br>')}</small></td></tr>`;
+  const row=x=>`<tr><td>${x.p.n} <b class=${x.q>=.5?'ok':'ko'}>${x.q>=.5?'OVER':'UNDER'}</b> ${LBL[x.s]}</td><td>${gm(x.p)}</td><td>${fx(x.e.p)}</td><td>${x.L0}</td><td><b>${pc(x.c)}</b></td><td style="white-space:normal;text-align:left"><small>${x.w.slice(0,2).join('<br>')}${PART[x.s]?'<br><span class=mu>'+parts(x.p,x.s)+'</span>':''}</small></td></tr>`;
   return`<div class=card><h3>Le migliori giocate della nottata</h3>
   <div class="sm mu">Solo giocate con probabilità almeno del 60%, almeno 10 partite di dati e un motivo concreto (punto debole della difesa, storico, assenze, triple). Una sola giocata per giocatore.</div>
   ${l.length?tbl(['Giocata','Partita','Proiezione','Linea indic.','Probabilità','Perché'],l.map(row)):'<p class="sm mu">Stanotte nessuna giocata supera questi criteri.</p>'}</div>`}
@@ -66,9 +73,9 @@ function pageB(){
   const when=new Date(S[0].date).toLocaleString('it-IT',{weekday:'long',hour:'2-digit',minute:'2-digit'});
   const ALL=[];const cards=S.map(g=>{
     const ps=PL.filter(p=>p.g===g),L=[];
-    for(const p of ps){if(p.min<18)continue;for(const s of['PTS','REB','AST','3PM']){const e=est(p,s);if(!e||e.base<MINB[s])continue;
+    for(const p of ps){if(p.min<18)continue;for(const s of STATS){const e=est(p,s);if(!e||e.base<MINB[s])continue;
       const q=pth(e.p,e.sd,e.base);L.push({p,s,e,q,ed:Math.abs(q-.5),L0:Math.round(e.base-.5)+.5})}}
-    ALL.push(...L);const best=[...L].sort((a,b)=>b.ed-a.ed).slice(0,4);
+    ALL.push(...L);const sn=new Set(),best=[...L].sort((a,b)=>b.ed-a.ed).filter(x=>!sn.has(x.p.n)&&sn.add(x.p.n)).slice(0,5);
     const al=[];
     for(const[t,o]of[[g.away,g.home],[g.home,g.away]]){
       for(const z of wk(o).filter(z=>z.f>=1.1).sort((a,b)=>b.f-a.f).slice(0,2)){
@@ -76,9 +83,9 @@ function pageB(){
         al.push(`<b>${o}</b> concede il ${((z.f-1)*100).toFixed(0)}% in più di ${LBL[z.s]} a ${ROLE[z.g]}: conviene guardare i ${ROLE[z.g]} di ${t}${nm?' ('+nm+')':''}`)}
       const a=tp3(o);if(a&&a.rk<=5)al.push(`<b>${o}</b> concede molte triple (${fx(a.m)} a partita, ${a.rk}° su ${TPn}): occhio ai tiratori di ${t}`);
       else if(a&&a.rk>TPn-5)al.push(`<b>${o}</b> concede poche triple (${fx(a.m)} a partita): più prudenza sulle triple di ${t}`)}
-    const sp=L.filter(x=>x.e.nv>=2&&(x.e.vs>=1.4*x.e.base||x.e.vs<=.6*x.e.base)&&Math.abs(x.e.vs-x.e.base)>=(x.s==='PTS'?4:1.5))
+    const sp=L.filter(x=>x.e.nv>=2&&(x.e.vs>=1.4*x.e.base||x.e.vs<=.6*x.e.base)&&Math.abs(x.e.vs-x.e.base)>=(BIGS.includes(x.s)?4:1.5))
       .sort((a,b)=>Math.abs(b.e.vs/b.e.base-1)-Math.abs(a.e.vs/a.e.base-1)).slice(0,3);
-    const row=x=>`<tr><td>${x.p.n} <b class=${x.q>=.5?'ok':'ko'}>${x.q>=.5?'OVER':'UNDER'}</b> ${LBL[x.s]}</td><td>${fx(x.e.p)}</td><td>${x.L0}</td><td><b>${pc(Math.max(x.q,1-x.q))}</b></td><td style="white-space:normal;text-align:left"><small>${why(x.p,x.s,x.e).join('<br>')||'nessun motivo specifico'}</small></td></tr>`;
+    const row=x=>`<tr><td>${x.p.n} <b class=${x.q>=.5?'ok':'ko'}>${x.q>=.5?'OVER':'UNDER'}</b> ${LBL[x.s]}</td><td>${fx(x.e.p)}</td><td>${x.L0}</td><td><b>${pc(Math.max(x.q,1-x.q))}</b></td><td style="white-space:normal;text-align:left"><small>${why(x.p,x.s,x.e).join('<br>')||'nessun motivo specifico'}${PART[x.s]?'<br><span class=mu>'+parts(x.p,x.s)+'</span>':''}</small></td></tr>`;
     return`<div class=card><h3>${gm({g})} <small>${new Date(g.date).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'})}</small></h3>
     ${al.length?`<h4>Punti deboli da sfruttare</h4><ul>${al.map(x=>`<li>${x}</li>`).join('')}</ul>`:''}
     <h4>Migliori giocate</h4>${best.length?tbl(['Giocata','Proiezione','Linea indic.','Prob. vs media','Perché'],best.map(row)):'<p class="sm mu">Nessuna giocata con dati sufficienti.</p>'}
@@ -105,5 +112,5 @@ window.show=function(t){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==='b'));
   $('#app').innerHTML=pageB();if(PL.length)wireB()};
 document.querySelector('nav').insertAdjacentHTML('beforeend','<button data-t="b">Giocate</button>');
-window.__giocate={pageB,wireB,drawC,pool,est,pth,MINB};
+window.__giocate={pageB,wireB,drawC,pool,est,pth,MINB,STATS,LBL};
 })();
