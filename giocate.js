@@ -112,5 +112,5 @@ window.show=function(t){
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t==='b'));
   $('#app').innerHTML=pageB();if(PL.length)wireB()};
 document.querySelector('nav').insertAdjacentHTML('beforeend','<button data-t="b">Giocate</button>');
-window.__giocate={pageB,wireB,drawC,pool,est,pth,MINB,STATS,LBL};
+window.__giocate={pageB,wireB,drawC,pool,est,pth,MINB,STATS,LBL,slate,why,parts};
 })();
