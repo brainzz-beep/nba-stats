@@ -13,12 +13,15 @@ ctx.window=ctx;
 vm.runInContext(rd('index.html').match(/<script>([\s\S]*?)<\/script>/)[1],ctx);
 vm.runInContext(rd('giocate.js'),ctx);
 vm.runInContext(rd('extra.js'),ctx);
+vm.runInContext(rd('novita.js'),ctx);
+vm.runInContext(rd('stelle.js'),ctx);
 (async()=>{
   for(let i=0;i<40;i++){
     await new Promise(r=>setTimeout(r,500));
     if(vm.runInContext('typeof R!=="undefined"&&R.length>0&&T.games.length>0',ctx))break;
   }
   vm.runInContext('window.__extra.logPreds()',ctx);
+  vm.runInContext('window.__stelle.logStars()',ctx);
   fs.mkdirSync('data',{recursive:true});
   fs.writeFileSync('data/preds.json',store.preds);
   console.log('previsioni totali:',Object.keys(JSON.parse(store.preds)).length);
