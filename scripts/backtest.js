@@ -25,10 +25,16 @@ async function day(D){
   vm.runInContext(main,ctx);vm.runInContext(giocate,ctx);vm.runInContext(extra,ctx);
   for(let i=0;i<300&&!vm.runInContext('typeof R!=="undefined"&&R.length>0',ctx);i++)await wait(10);
   const out=JSON.parse(vm.runInContext(`(()=>{const G=window.__giocate,o=[];for(const p of G.pool(${JSON.stringify(games)})){if(p.min<18)continue;
-    for(const s of G.STATS){const e=G.est(p,s);if(!e||e.base<G.MINB[s])continue;o.push([p.n,p.g.id,s,e.p,e.sd,e.base,byP[p.n].length])}}return JSON.stringify(o)})()`,ctx));
+    for(const s of G.STATS){const e=G.est(p,s);if(!e||e.base<G.MINB[s])continue;o.push([p.n,p.g.id,s,e.p,e.sd,e.base,byP[p.n].length,G.why(p,s,e).length])}}return JSON.stringify(o)})()`,ctx));
   const act={};for(const r of today)act[r[0]+'|'+r[5]]=r;
-  for(const[n,gid,s,p,sd,base,ng]of out){const r=act[gid+'|'+n];if(!r)continue;const a=val[s](r),L0=Math.round(base-.5)+.5;
-    preds.push({s,ng,q0:1-cdf((base-p)/Math.max(sd,.3)),o0:a>base,q1:1-cdf((L0-p)/Math.max(sd,.3)),o1:a>L0})}
+  const dp=[];
+  for(const[n,gid,s,p,sd,base,ng,nw]of out){const r=act[gid+'|'+n];if(!r)continue;const a=val[s](r),L0=Math.round(base-.5)+.5;
+    dp.push({n,s,ng,nw,q0:1-cdf((base-p)/Math.max(sd,.3)),o0:a>base,q1:1-cdf((L0-p)/Math.max(sd,.3)),o1:a>L0})}
+  // stella: gli stessi criteri del sito (probabilità almeno 60%, 10 partite di dati, un motivo concreto, una per giocatore, prime 8 del giorno)
+  const seen=new Set();
+  dp.filter(x=>Math.max(x.q0,1-x.q0)>=.6&&x.ng>=10&&x.nw>=1).sort((a,b)=>Math.max(b.q0,1-b.q0)-Math.max(a.q0,1-a.q0))
+    .filter(x=>!seen.has(x.n)&&seen.add(x.n)).slice(0,8).forEach(x=>{x.star=true});
+  preds.push(...dp);
 }
 
 function table(key){
@@ -47,6 +53,11 @@ function table(key){
     line:table('1'),avg:table('0'),
     byStat:Object.fromEntries(STATS.map(s=>{const a=strong.filter(x=>x.s===s);return[s,{n:a.length,hit:hit(a)}]})),
     top:{n:top.length,hit:hit(top)}};
+  const st=preds.filter(x=>x.star),oth=preds.filter(x=>!x.star&&Math.max(x.q0,1-x.q0)>=.6);
+  const c0=x=>Math.max(x.q0,1-x.q0),h0=a=>a.length?a.filter(x=>x.o0===(x.q0>=.5)).length/a.length:null,h1=a=>a.length?a.filter(x=>x.o1===(x.q0>=.5)).length/a.length:null;
+  res.stars={n:st.length,conf:st.length?st.reduce((s,x)=>s+c0(x),0)/st.length:null,hit0:h0(st),hit1:h1(st),others:{n:oth.length,hit0:h0(oth),hit1:h1(oth)},
+    bins:[[.6,.65],[.65,.7],[.7,.8],[.8,1.01]].map(([lo,hi])=>{const a=st.filter(x=>c0(x)>=lo&&c0(x)<hi);return{lo,hi:Math.min(1,hi),n:a.length,conf:a.length?a.reduce((s,x)=>s+c0(x),0)/a.length:null,hit0:h0(a),hit1:h1(a)}}),
+    byStat:Object.fromEntries(STATS.map(s=>{const a=st.filter(x=>x.s===s);return[s,{n:a.length,hit0:h0(a),hit1:h1(a)}]}))};
   fs.mkdirSync('data',{recursive:true});fs.writeFileSync('data/backtest.json',JSON.stringify(res));
   console.log('giorni',res.days,'previsioni',res.n,'brier',brier&&brier.toFixed(4),'top',res.top.n,res.top.hit);
   process.exit(0);
